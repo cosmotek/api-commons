@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
-	"gitlab.com/fivepm/api-commons/database"
+	"github.com/cosmotek/api-commons/database"
 )
 
 var (
