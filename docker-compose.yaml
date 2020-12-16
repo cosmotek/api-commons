@@ -1,0 +1,30 @@
+version: "3.2"
+services:
+  minio:
+    image: minio/minio
+    ports:
+      - "9001:9000"
+    restart: on-failure
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio
+    command: server /data
+  postgres:
+    image: mdillon/postgis
+    ports:
+      - 5433:5432
+    environment:
+      - POSTGRES_USER=psql
+      - POSTGRES_PASSWORD=psql
+      - POSTGRES_DB=psql
+  database_ui:
+    image: microbox/pgweb
+    restart: always
+    depends_on:
+      - postgres
+    links:
+      - postgres
+    ports:
+      - '5004:8080'
+    environment:
+      - URL="postgres://iv3api:iv3api@postgres:5432/iv3api?sslmode=disable"%         
