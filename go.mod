@@ -1,4 +1,4 @@
-module gitlab.com/fivepm/api-commons
+module gitlab.com/cosmotek/api-commons
 
 go 1.14
 
