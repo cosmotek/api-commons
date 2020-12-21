@@ -1,4 +1,4 @@
-module gitlab.com/cosmotek/api-commons
+module github.com/cosmotek/api-commons
 
 go 1.14
 
