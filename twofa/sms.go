@@ -27,12 +27,12 @@ type smsPincode struct {
 	ExpiresAt   time.Time `json:"expiresAt" db:"expires_at"`
 }
 
-const smsPincodeMessageTemplate = `Your iVueit verification code is %s`
+const smsPincodeMessageTemplate = `Your verification code is %s`
 
 // SendSMSPincode sends a pincode verification text using the template string
 // included internally in this package and the provided pincode string.
 func SendSMSPincode(messenger nexgo.Messenger, phoneNumber, pincode string) error {
-	return messenger.Send("iVueit Verification Code", phoneNumber, fmt.Sprintf(smsPincodeMessageTemplate, pincode))
+	return messenger.Send("Verification Code", phoneNumber, fmt.Sprintf(smsPincodeMessageTemplate, pincode))
 }
 
 // CreateSMSPincode creates a pincode and pincode record, writing the record
