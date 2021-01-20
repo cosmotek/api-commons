@@ -12,7 +12,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	jwt "gopkg.in/dgrijalva/jwt-go.v2"
 
-	"gitlab.com/fivepm/api-commons/database"
+	"github.com/cosmotek/api-commons/database"
 )
 
 var (

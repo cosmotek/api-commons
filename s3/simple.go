@@ -18,6 +18,7 @@ var ErrNotFound = errors.New("seeker can't seek")
 type Bucket struct {
 	client *minio.Client
 	name   string
+	conf   Config
 }
 
 type File interface {
@@ -29,6 +30,7 @@ type File interface {
 
 type Config struct {
 	Host, APIKey, Secret, BucketName string
+	Region                           string
 }
 
 func New(conf Config) (*Bucket, error) {
@@ -43,7 +45,12 @@ func New(conf Config) (*Bucket, error) {
 	}
 
 	if !ok {
-		err = minioClient.MakeBucket(conf.BucketName, defaultRegion)
+		region := defaultRegion
+		if conf.Region != "" {
+			region = conf.Region
+		}
+
+		err = minioClient.MakeBucket(conf.BucketName, region)
 		if err != nil {
 			return nil, err
 		}
@@ -52,10 +59,11 @@ func New(conf Config) (*Bucket, error) {
 	return &Bucket{
 		client: minioClient,
 		name:   conf.BucketName,
+		conf:   conf,
 	}, nil
 }
 
-func (f *Bucket) Upload(filepath string, contents []byte) error {
+func (f *Bucket) Upload(filepath string, contents []byte) (string, error) {
 	_, err := f.client.PutObject(
 		f.name,
 		filepath,
@@ -64,7 +72,7 @@ func (f *Bucket) Upload(filepath string, contents []byte) error {
 		minio.PutObjectOptions{},
 	)
 
-	return err
+	return fmt.Sprintf("%s/%s/%s", f.conf.Host, f.name, filepath), err
 }
 
 func (f *Bucket) GeneratePresignedURL(filepath string, filename string) (string, error) {
@@ -87,6 +95,7 @@ func (f *Bucket) Delete(filepath string) error {
 }
 
 type FileInfo struct {
+	URL          string
 	ContentType  string
 	LastModified time.Time
 	Owner        string
@@ -101,6 +110,7 @@ func (f *Bucket) Stat(filepath string) (FileInfo, error) {
 	}
 
 	return FileInfo{
+		URL:          fmt.Sprintf("%s/%s/%s", f.conf.Host, f.name, filepath),
 		ContentType:  info.ContentType,
 		LastModified: info.LastModified,
 		Owner:        info.Owner.DisplayName,

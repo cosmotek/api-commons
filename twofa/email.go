@@ -33,7 +33,7 @@ var (
 // using the provided HTML string, returning the sender
 // email (with formatted name included).
 func SendHTMLEmail(messenger mailgo.Messenger, emailHTML, subject, recipientEmail string) (string, error) {
-	sender := messenger.GenerateSender("iVueit", "noreply")
+	sender := messenger.GenerateSender("_____", "noreply")
 	return string(sender), messenger.SendHTML(
 		subject,
 		recipientEmail,
