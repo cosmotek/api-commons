@@ -52,7 +52,7 @@ func (d *Database) GetCurrentMigration() (Migration, error) {
 	return migration, err
 }
 
-func (d *Database) DiffMigrations() ([]Migration, error) {
+func (d *Database) DiffMigrations(compareHashes bool) ([]Migration, error) {
 	currentMigration, err := d.GetCurrentMigration()
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func (d *Database) DiffMigrations() ([]Migration, error) {
 			Complete: uint64(version) <= currentMigration.Version,
 		}
 
-		if migration.Version == currentMigration.Version && migration.Hash != currentMigration.Hash {
+		if compareHashes && migration.Version == currentMigration.Version && migration.Hash != currentMigration.Hash {
 			return errors.New("migrations are up to date but appear to have been modified (latest hash mismatch)")
 		}
 
