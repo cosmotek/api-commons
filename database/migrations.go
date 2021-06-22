@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/rs/zerolog"
 )
 
 type Migration struct {
@@ -32,6 +31,20 @@ type MigrationStatus struct {
 	Failed  uint64
 	Skipped uint64
 	Latest  uint64
+}
+
+func (d *Database) SyncMigrations() (MigrationStatus, error) {
+	currentMig, err := d.GetCurrentMigration()
+	if err != nil {
+		return MigrationStatus{}, err
+	}
+
+	diffMigs, err := d.DiffMigrations(false)
+	if err != nil {
+		return MigrationStatus{}, err
+	}
+
+	return d.RunMigrations(currentMig, diffMigs...)
 }
 
 func (d *Database) GetCurrentMigration() (Migration, error) {
@@ -107,7 +120,7 @@ func (d *Database) DiffMigrations(compareHashes bool) ([]Migration, error) {
 	return migrations, err
 }
 
-func (d *Database) RunMigrations(logger zerolog.Logger, currentMigration Migration, migrations ...Migration) (MigrationStatus, error) {
+func (d *Database) RunMigrations(currentMigration Migration, migrations ...Migration) (MigrationStatus, error) {
 	sort.Sort(MigrationSet(migrations))
 	migrationStatus := MigrationStatus{
 		Latest: currentMigration.Version,
@@ -132,7 +145,6 @@ func (d *Database) RunMigrations(logger zerolog.Logger, currentMigration Migrati
 			if err != nil {
 				migrationStatus.Failed += 1
 
-				logger.Error().Err(err).Uint64("version", migration.Version).Str("file", migration.File).Msg("failed to start migration")
 				return migrationStatus, err
 			}
 
@@ -140,7 +152,6 @@ func (d *Database) RunMigrations(logger zerolog.Logger, currentMigration Migrati
 			if err != nil {
 				migrationStatus.Failed += 1
 
-				logger.Error().Err(err).Uint64("version", migration.Version).Str("file", migration.File).Msg("failed to apply migration")
 				return migrationStatus, err
 			}
 
@@ -151,7 +162,6 @@ func (d *Database) RunMigrations(logger zerolog.Logger, currentMigration Migrati
 			if err != nil {
 				migrationStatus.Failed += 1
 
-				logger.Error().Err(err).Uint64("version", migration.Version).Str("file", migration.File).Msg("failed to complete migration")
 				return migrationStatus, err
 			}
 
