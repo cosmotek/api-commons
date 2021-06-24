@@ -7,7 +7,10 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/doug-martin/goqu/v9"
 	"github.com/jmoiron/sqlx"
+
+	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
 	_ "github.com/lib/pq"
 )
 
@@ -19,6 +22,7 @@ type Config struct {
 type Database struct {
 	client       *sqlx.DB
 	migrationDir string
+	sqlDialect   goqu.DialectWrapper
 }
 
 // DB is an alias to Database (less to type out).
@@ -60,7 +64,11 @@ func Dial(conf Config) (*Database, error) {
 		return nil, err
 	}
 
-	d := &Database{sqlx.NewDb(db, "postgres"), conf.MigrationDir}
+	d := &Database{
+		client:       sqlx.NewDb(db, "postgres"),
+		migrationDir: conf.MigrationDir,
+		sqlDialect:   goqu.Dialect("postgres"),
+	}
 	_, err = d.GetCurrentMigration()
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -78,6 +86,10 @@ func Dial(conf Config) (*Database, error) {
 	}
 
 	return d, nil
+}
+
+func (d *Database) Builder() goqu.DialectWrapper {
+	return d.sqlDialect
 }
 
 // Ping sends a ping message to the database to check for signs of life.
