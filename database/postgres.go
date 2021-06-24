@@ -20,9 +20,10 @@ type Config struct {
 }
 
 type Database struct {
-	client       *sqlx.DB
-	migrationDir string
-	sqlDialect   goqu.DialectWrapper
+	client            *sqlx.DB
+	migrationDir      string
+	sqlBuilderDialect goqu.DialectWrapper
+	sqlSmartExec      *goqu.Database
 }
 
 // DB is an alias to Database (less to type out).
@@ -65,9 +66,10 @@ func Dial(conf Config) (*Database, error) {
 	}
 
 	d := &Database{
-		client:       sqlx.NewDb(db, "postgres"),
-		migrationDir: conf.MigrationDir,
-		sqlDialect:   goqu.Dialect("postgres"),
+		client:            sqlx.NewDb(db, "postgres"),
+		sqlBuilderDialect: goqu.Dialect("postgres"),
+		sqlSmartExec:      goqu.New("postgres", db),
+		migrationDir:      conf.MigrationDir,
 	}
 	_, err = d.GetCurrentMigration()
 	if err != nil {
@@ -88,8 +90,12 @@ func Dial(conf Config) (*Database, error) {
 	return d, nil
 }
 
-func (d *Database) Builder() goqu.DialectWrapper {
-	return d.sqlDialect
+func (d *Database) Build() goqu.DialectWrapper {
+	return d.sqlBuilderDialect
+}
+
+func (d *Database) Exec() *goqu.Database {
+	return d.sqlSmartExec
 }
 
 // Ping sends a ping message to the database to check for signs of life.
