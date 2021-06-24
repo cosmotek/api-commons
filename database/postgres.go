@@ -20,10 +20,10 @@ type Config struct {
 }
 
 type Database struct {
-	client            *sqlx.DB
-	migrationDir      string
-	sqlBuilderDialect goqu.DialectWrapper
-	sqlSmartExec      *goqu.Database
+	*sqlx.DB
+	migrationDir string
+	goqu.DialectWrapper
+	*goqu.Database
 }
 
 // DB is an alias to Database (less to type out).
@@ -66,10 +66,10 @@ func Dial(conf Config) (*Database, error) {
 	}
 
 	d := &Database{
-		client:            sqlx.NewDb(db, "postgres"),
-		sqlBuilderDialect: goqu.Dialect("postgres"),
-		sqlSmartExec:      goqu.New("postgres", db),
-		migrationDir:      conf.MigrationDir,
+		sqlx.NewDb(db, "postgres"),
+		conf.MigrationDir,
+		goqu.Dialect("postgres"),
+		goqu.New("postgres", db),
 	}
 	_, err = d.GetCurrentMigration()
 	if err != nil {
@@ -90,27 +90,19 @@ func Dial(conf Config) (*Database, error) {
 	return d, nil
 }
 
-func (d *Database) Build() goqu.DialectWrapper {
-	return d.sqlBuilderDialect
-}
-
-func (d *Database) Exec() *goqu.Database {
-	return d.sqlSmartExec
-}
-
 // Ping sends a ping message to the database to check for signs of life.
 func (d *Database) Ping() error {
-	return d.client.Ping()
+	return d.Ping()
 }
 
 // Close gracefully closes the connection to the database.
 func (d *Database) Close() error {
-	return d.client.Close()
+	return d.Close()
 }
 
 // exec provides the underlying functionality for the db.View and db.Update transaction handling methods.
 func (d *Database) exec(ctx context.Context, callback func(*sqlx.Tx) error, readOnly bool) error {
-	tx, err := d.client.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelDefault, ReadOnly: readOnly})
+	tx, err := d.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelDefault, ReadOnly: readOnly})
 	if err != nil {
 		return err
 	}
