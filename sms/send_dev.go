@@ -15,7 +15,7 @@ import (
 var pipe chan msg
 
 func init() {
-	pipe = make(chan msg)
+	pipe = make(chan msg, 100)
 
 	app := fiber.New()
 	liveServer := golive.NewServer()
@@ -34,7 +34,8 @@ func init() {
 
 type msglog struct {
 	golive.LiveComponentWrapper
-	Messages []msg
+	Messages        []msg
+	SelectedMessage *msg
 }
 
 func createMsgLog() *golive.LiveComponent {
@@ -45,7 +46,7 @@ func (t *msglog) Mounted(_ *golive.LiveComponent) {
 	go func() {
 		for {
 			newMsg := <-pipe
-			t.Messages = append(t.Messages, newMsg)
+			t.Messages = append([]msg{newMsg}, t.Messages...)
 
 			t.Commit()
 		}
@@ -75,13 +76,19 @@ func (t *msglog) TemplateHandler(_ *golive.LiveComponent) string {
 			</div>
 
 			<div id="right">
-				<p>Right Half</p>
-				<p>Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo. Quisque sit amet est et sapien ullamcorper pharetra. Vestibulum erat wisi, condimentum sed, commodo vitae, ornare sit amet, wisi. Aenean fermentum, elit eget tincidunt condimentum, eros ipsum rutrum orci, sagittis tempus lacus enim ac dui. Donec non enim in turpis pulvinar facilisis. Ut felis. Praesent dapibus, neque id cursus faucibus, tortor neque egestas augue, eu vulputate magna eros eu erat. Aliquam erat volutpat. Nam dui mi, tincidunt quis, accumsan porttitor, facilisis luctus, metus</p>
-				<p>Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo. Quisque sit amet est et sapien ullamcorper pharetra. Vestibulum erat wisi, condimentum sed, commodo vitae, ornare sit amet, wisi. Aenean fermentum, elit eget tincidunt condimentum, eros ipsum rutrum orci, sagittis tempus lacus enim ac dui. Donec non enim in turpis pulvinar facilisis. Ut felis. Praesent dapibus, neque id cursus faucibus, tortor neque egestas augue, eu vulputate magna eros eu erat. Aliquam erat volutpat. Nam dui mi, tincidunt quis, accumsan porttitor, facilisis luctus, metus</p>
+			{{if not .SelectedMessage}}
+				<p><i>No message selected.</i></p>
+			{{else}} 
+				<p>testy</p>
+			{{end}}
 			</div>
 		</div>
 	`
 }
+
+// <h3>{{.SelectedMessage.Title}}</h3>
+// 				<p>{{.SelectedMessage.Message}}</p>
+// 				<p><i>{{.SelectedMessage.SentAt}}</i></p>
 
 type msg struct {
 	SentAt                   time.Time
