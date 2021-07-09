@@ -1,9 +1,11 @@
 package sms
 
+import "github.com/ttacon/libphonenumber"
+
 type Messenger struct {
 	apiKey       string
 	apiSecret    string
-	senderNumber string
+	SenderNumber *libphonenumber.PhoneNumber
 }
 
 // Config is used to provide the config required
@@ -17,14 +19,15 @@ type Config struct {
 	APIKey, Secret, SenderNumber string
 }
 
-func New(conf Config) Messenger {
+func New(conf Config) (Messenger, error) {
+	fromNum, err := libphonenumber.Parse(conf.SenderNumber, "US")
+	if err != nil {
+		return Messenger{}, err
+	}
+
 	return Messenger{
-		senderNumber: conf.SenderNumber,
+		SenderNumber: fromNum,
 		apiKey:       conf.APIKey,
 		apiSecret:    conf.Secret,
-	}
-}
-
-func (m Messenger) SenderNumber() string {
-	return m.senderNumber
+	}, nil
 }

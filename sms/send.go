@@ -22,7 +22,7 @@ func (m Messenger) Send(title, to, message string) error {
 		"api_key":    m.apiKey,
 		"api_secret": m.apiSecret,
 		"to":         fmt.Sprintf("1%s", to),
-		"from":       fmt.Sprintf("1%s", m.senderNumber),
+		"from":       fmt.Sprintf("1%s", m.SenderNumber.String()),
 		"text":       message,
 		"title":      title,
 	})

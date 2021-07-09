@@ -1,9 +1,11 @@
 // +build dev
 
-package sms
+package email
 
 import (
 	"bytes"
+	"html"
+	"io"
 	"log"
 	"net/http"
 	"text/template"
@@ -11,11 +13,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/ttacon/libphonenumber"
+	"goji.io"
+	"goji.io/pat"
 )
 
 var (
-	host     = "localhost:5050"
+	host     = "localhost:5051"
 	newline  = []byte{'\n'}
 	space    = []byte{' '}
 	upgrader = websocket.Upgrader{
@@ -28,20 +31,20 @@ var (
 )
 
 type msg struct {
-	SentAt, Title, From, To, Message, ID string
+	SentAt, Subject, From, To, Text, HTML, ID string
 }
 
 const initalPageTemplate = `<!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>SMS DevServer</title>
+        <title>Email DevServer</title>
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
     </head>
     <body>
 		<style type="text/css">
-		* { margin: 0; padding: 10px; font-family: 'Roboto Mono', monospace; }
+		* { margin: 0; padding: 10px; font-family: 'Roboto Mono', monospace; background-color: white; }
 		#left { position: absolute; left: 0; top: 0; max-width: 30%; height: 100vh; overflow-y: scroll; }
 		#right { position: absolute; right: 0; top: 0; width: 65%; height: 100vh; overflow-y: scroll; }
 
@@ -58,17 +61,23 @@ const initalPageTemplate = `<!DOCTYPE html>
 			border-radius: 10px;
 		}
 
+		iframe {
+			display: block;
+			width: 100%;
+			height: 100%;
+			border: none;
+		}
 		</style>
 
 		<div id="fileData">
 			<div id="left">
-			<h2>Sent SMS (Total {{ len .Messages }})</h2>
+			<h2>Sent Emails (Total {{ len .Messages }})</h2>
 			<br/>
 			{{ $root := . }}
 			{{range $msg := $root.Messages}}
 			<div class="msg-item" msg-id="{{$msg.ID}}" onclick="selectMessage('{{$msg.ID}}')">
 				<h4>To: {{$msg.To}}</h4>
-				<p>{{$msg.Title}}</p>
+				<p>{{$msg.Subject}}</p>
 				<p><i>{{$msg.SentAt}}</i></p>
 			</div>
 			{{end}}
@@ -80,7 +89,7 @@ const initalPageTemplate = `<!DOCTYPE html>
 
         <script type="text/javascript">
 			var data = document.getElementById("fileData");
-			var conn = new WebSocket("ws://{{.Host}}/ws");
+			var conn = new WebSocket("ws://{{.Host}}/email_ws");
 			conn.onmessage = function(evt) {
 				data.innerHTML = evt.data;
 			}
@@ -95,13 +104,13 @@ const initalPageTemplate = `<!DOCTYPE html>
 
 const updatedPageTemplate = `
 <div id="left">
-<h2>Sent SMS (Total {{ len .Messages }})</h2>
+<h2>Sent Emails (Total {{ len .Messages }})</h2>
 <br/>
 {{ $root := . }}
 {{range $msg := $root.Messages}}
 <div class="msg-item {{if eq $root.Selected $msg.ID }}selected{{end}}" msg-id="{{$msg.ID}}" onclick="selectMessage('{{$msg.ID}}')">
 	<h4>To: {{$msg.To}}</h4>
-	<p>{{$msg.Title}}</p>
+	<p>{{$msg.Subject}}</p>
 	<p><i>{{$msg.SentAt}}</i></p>
 </div>
 {{end}}
@@ -111,10 +120,13 @@ const updatedPageTemplate = `
 	<p><i>No message selected.</i></p>
 {{else}}
 	{{ $msg := .SelectedMessage }}
-	<h4>To: {{$msg.To}}, From: {{$msg.From}}, Subject: "{{$msg.Title}}"</h4>
+	<h4><xmp>To: {{$msg.To}}, From: {{$msg.From}}, Subject: "{{$msg.Subject}}"</xmp></h4>
 	<br/>
+	<p><b>HTML</b></p>
+	<iframe src="/sent_emails/body/{{$msg.ID}}"/>
+	<p><b>Plain Text</b></p>
 	<p>"</p>
-	<p>{{$msg.Message}}</p>
+	<xmp>{{$msg.Text}}</xmp>
 	<p>"</p>
 	<br/>
 	<p><i>{{$msg.SentAt}}</i></p>
@@ -124,13 +136,10 @@ const updatedPageTemplate = `
 
 func init() {
 	homeTmpl := template.Must(template.New("").Parse(initalPageTemplate))
-	log.Printf("launching SMS dev server @ http://%s/sent_sms\n", host)
+	log.Printf("launching SMS dev server @ http://%s/sent_emails\n", host)
+	mux := goji.NewMux()
 
-	http.HandleFunc("/sent_sms", func(res http.ResponseWriter, req *http.Request) {
-		if req.Method != "GET" {
-			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
+	mux.HandleFunc(pat.Get("/sent_emails"), func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 		homeTmpl.Execute(res, struct {
@@ -142,7 +151,21 @@ func init() {
 		})
 	})
 
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Get("/sent_emails/body/:id"), func(res http.ResponseWriter, req *http.Request) {
+		res.Header().Set("Content-Type", "text/html; charset=utf-8")
+		id := pat.Param(req, "id")
+
+		if len(id) > 0 {
+			for _, m := range msgs {
+				if m.ID == id {
+					io.WriteString(res, m.HTML)
+					break
+				}
+			}
+		}
+	})
+
+	mux.HandleFunc(pat.New("/email_ws"), func(w http.ResponseWriter, r *http.Request) {
 		selectedMsgID := ""
 		selectedMsg := new(msg)
 		selectedMsg = nil
@@ -209,25 +232,38 @@ func init() {
 	})
 
 	go func() {
-		if err := http.ListenAndServe(host, nil); err != nil {
+		if err := http.ListenAndServe(host, mux); err != nil {
 			log.Fatal(err)
 		}
 	}()
 }
 
-func (m Messenger) Send(title, to, message string) error {
-	toNum, err := libphonenumber.Parse(to, "US")
-	if err != nil {
-		return err
-	}
-
+func (m Messenger) Send(subject, to, text string, from Sender) error {
 	msgs = append([]msg{msg{
 		ID:      uuid.New().String(),
 		SentAt:  time.Now().Format("Jan 02 2006 15:04:05"),
-		Title:   title,
-		To:      libphonenumber.Format(toNum, libphonenumber.INTERNATIONAL),
-		From:    libphonenumber.Format(m.SenderNumber, libphonenumber.INTERNATIONAL),
-		Message: message,
+		Subject: subject,
+		To:      to,
+		From:    string(from),
+		Text:    text,
+	}}, msgs...)
+
+	go func() {
+		messagesUpdated <- struct{}{}
+	}()
+
+	return nil
+}
+
+func (m Messenger) SendHTML(subject, to, htmlBody string, from Sender) error {
+	msgs = append([]msg{msg{
+		ID:      uuid.New().String(),
+		SentAt:  time.Now().Format("Jan 02 2006 15:04:05"),
+		Subject: subject,
+		To:      to,
+		From:    string(from),
+		HTML:    htmlBody,
+		Text:    html.EscapeString(htmlBody),
 	}}, msgs...)
 
 	go func() {
