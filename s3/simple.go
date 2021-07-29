@@ -2,6 +2,7 @@ package s3
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -79,6 +80,15 @@ func (f *Bucket) GeneratePresignedURL(filepath string, filename string) (string,
 	url, err := f.client.PresignedGetObject(f.name, filepath, time.Hour*24*7, url.Values{
 		"response-content-disposition": {fmt.Sprintf("attachment;filename=%s", filename)},
 	})
+	if err != nil {
+		return "", err
+	}
+
+	return url.String(), nil
+}
+
+func (f *Bucket) GeneratePresignedUploadURL(ctx context.Context, filepath string, expiry time.Duration) (string, error) {
+	url, err := f.client.PresignedPutObject(f.name, filepath, expiry)
 	if err != nil {
 		return "", err
 	}
