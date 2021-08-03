@@ -92,12 +92,12 @@ func Dial(conf Config) (*Database, error) {
 
 // Ping sends a ping message to the database to check for signs of life.
 func (d *Database) Ping() error {
-	return d.Ping()
+	return d.DB.Ping()
 }
 
 // Close gracefully closes the connection to the database.
 func (d *Database) Close() error {
-	return d.Close()
+	return d.DB.Close()
 }
 
 // exec provides the underlying functionality for the db.View and db.Update transaction handling methods.
