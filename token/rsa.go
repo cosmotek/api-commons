@@ -4,7 +4,7 @@ import (
 	"crypto/rsa"
 	"io/ioutil"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 func ParseRSAKeys(pubKeyFile, privateKeyFile string) (*rsa.PublicKey, *rsa.PrivateKey, error) {

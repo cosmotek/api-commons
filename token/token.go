@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"time"
 
+	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/jmoiron/sqlx"
 	"github.com/mitchellh/mapstructure"
-	jwt "gopkg.in/dgrijalva/jwt-go.v2"
 
 	"github.com/cosmotek/api-commons/database"
 )
